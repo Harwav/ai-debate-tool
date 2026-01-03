@@ -28,7 +28,7 @@ CLI Usage:
     ai-debate config --init
 """
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 __author__ = "AI Debate Tool Contributors"
 __license__ = "MIT"
 
@@ -58,6 +58,31 @@ def get_ai_orchestrator():
     from .services.ai_orchestrator import AIOrchestrator
     return AIOrchestrator
 
+def get_streaming_orchestrator():
+    """Get the StreamingDebateOrchestrator (lazy import, v1.3.0)."""
+    from .services.streaming_orchestrator import StreamingDebateOrchestrator
+    return StreamingDebateOrchestrator
+
+def get_stream_events():
+    """Get streaming event classes (lazy import, v1.3.0)."""
+    from .services.stream_events import StreamEvent, EventType, StreamEventFormatter
+    return StreamEvent, EventType, StreamEventFormatter
+
+def get_model_providers():
+    """Get model provider classes (lazy import, v1.3.0)."""
+    from .services.model_provider import (
+        ModelProvider, ModelResponse, CodexCLIProvider,
+        CopilotBridgeProvider, get_available_providers, get_provider_status
+    )
+    return {
+        'ModelProvider': ModelProvider,
+        'ModelResponse': ModelResponse,
+        'CodexCLIProvider': CodexCLIProvider,
+        'CopilotBridgeProvider': CopilotBridgeProvider,
+        'get_available_providers': get_available_providers,
+        'get_provider_status': get_provider_status,
+    }
+
 __all__ = [
     # Version info
     "__version__",
@@ -80,4 +105,8 @@ __all__ = [
     # Factory functions
     "get_orchestrator",
     "get_ai_orchestrator",
+    # v1.3.0: Streaming & Multi-Model
+    "get_streaming_orchestrator",
+    "get_stream_events",
+    "get_model_providers",
 ]

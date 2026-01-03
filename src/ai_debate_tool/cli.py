@@ -36,27 +36,144 @@ def main():
 @click.option("--target", "-t", default=75, help="Target consensus score (default: 75)")
 @click.option("--output", "-o", help="Output file for results (JSON)")
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
-def run(topic: str, file_path: str, focus: tuple, target: int, output: Optional[str], verbose: bool):
+@click.option("--stream", "-s", is_flag=True, help="Show live streaming progress")
+@click.option("--json-stream", "json_stream", is_flag=True, help="Output JSON lines for each event")
+def run(
+    topic: str,
+    file_path: str,
+    focus: tuple,
+    target: int,
+    output: Optional[str],
+    verbose: bool,
+    stream: bool,
+    json_stream: bool
+):
     """Run a debate on a topic.
 
     Example:
         ai-debate run "Review this refactoring plan" --file plans/refactor.md
+        ai-debate run "Review auth" --file auth.py --stream
+        ai-debate run "Review auth" --file auth.py --json-stream
     """
-    from .services.parallel_debate_orchestrator import ParallelDebateOrchestrator
-
     # Verify file exists
     path = Path(file_path)
     if not path.exists():
         click.echo(f"Error: File not found: {file_path}", err=True)
         sys.exit(1)
 
+    focus_areas = list(focus) if focus else None
+
+    # Use streaming mode if requested
+    if stream or json_stream:
+        _run_streaming_debate(
+            topic=topic,
+            file_path=str(path.absolute()),
+            focus_areas=focus_areas,
+            target=target,
+            output=output,
+            json_mode=json_stream
+        )
+    else:
+        _run_standard_debate(
+            topic=topic,
+            file_path=str(path.absolute()),
+            focus_areas=focus_areas,
+            target=target,
+            output=output,
+            verbose=verbose
+        )
+
+
+def _run_streaming_debate(
+    topic: str,
+    file_path: str,
+    focus_areas: Optional[list],
+    target: int,
+    output: Optional[str],
+    json_mode: bool
+):
+    """Run debate with streaming output."""
+    from .services.streaming_orchestrator import StreamingDebateOrchestrator
+    from .services.stream_events import StreamEvent, EventType, StreamEventFormatter
+
+    async def run_streaming():
+        orchestrator = StreamingDebateOrchestrator(
+            enable_cache=True,
+            enable_history=True
+        )
+
+        final_result = None
+
+        async for event in orchestrator.run_debate_streaming(
+            request=topic,
+            file_path=file_path,
+            focus_areas=focus_areas
+        ):
+            if json_mode:
+                # Output raw JSON lines
+                click.echo(event.to_json())
+            else:
+                # Format for CLI display
+                formatted = StreamEventFormatter.format_cli(event)
+                if formatted:
+                    if event.type == EventType.PROGRESS:
+                        # Use carriage return for progress updates
+                        click.echo(formatted, nl=False)
+                    else:
+                        click.echo(formatted)
+
+            # Capture final result
+            if event.type == EventType.COMPLETE:
+                final_result = event.data
+
+        return final_result
+
+    try:
+        result = asyncio.run(run_streaming())
+
+        # Save to file if requested
+        if output and result:
+            output_path = Path(output)
+            with open(output_path, "w") as f:
+                json.dump(result, f, indent=2, default=str)
+            if not json_mode:
+                click.echo(f"\nResults saved to: {output}")
+
+        # Exit with appropriate code
+        if result:
+            consensus = result.get("consensus", 0)
+            if consensus >= target:
+                sys.exit(0)
+            else:
+                sys.exit(1)
+        else:
+            sys.exit(1)
+
+    except Exception as e:
+        if json_mode:
+            error_event = StreamEvent.error(str(e))
+            click.echo(error_event.to_json())
+        else:
+            click.echo(f"Error running debate: {e}", err=True)
+        sys.exit(1)
+
+
+def _run_standard_debate(
+    topic: str,
+    file_path: str,
+    focus_areas: Optional[list],
+    target: int,
+    output: Optional[str],
+    verbose: bool
+):
+    """Run debate with standard (non-streaming) output."""
+    from .services.parallel_debate_orchestrator import ParallelDebateOrchestrator
+
     async def run_debate():
         orchestrator = ParallelDebateOrchestrator(
             enable_cache=True,
             enable_intelligence=True
         )
-
-        focus_areas = list(focus) if focus else None
 
         if verbose:
             click.echo(f"Running debate on: {topic}")
@@ -66,7 +183,7 @@ def run(topic: str, file_path: str, focus: tuple, target: int, output: Optional[
 
         result = await orchestrator.run_debate(
             request=topic,
-            file_path=str(path.absolute()),
+            file_path=file_path,
             focus_areas=focus_areas
         )
 

@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-01-04
+
+### Added
+- **Real-time Streaming Output**: See live progress during debates
+  - `ai-debate run --stream` shows progress with updates as each perspective completes
+  - `ai-debate run --json-stream` outputs JSON lines for automation/piping
+  - Progress bars, timing, and live score updates
+
+- **True Multi-Model Debates (MCP)**: New two-phase workflow using real Claude
+  - `debate_start` - Starts debate, returns prompt for Claude's REAL analysis
+  - `debate_complete` - Accepts Claude's analysis, invokes Codex, returns consensus
+  - Fixes architecture where "Claude" perspective was previously fake/simulated
+
+- **Model Provider Abstraction**: Clean interface for AI providers
+  - `ModelProvider` abstract base class
+  - `CodexCLIProvider` for Codex CLI subprocess invocation
+  - `CopilotBridgeProvider` for VS Code Copilot Bridge
+  - Auto-detection of best available provider pair
+
+- **Streaming Event System**: Structured events for progress tracking
+  - Event types: START, PROGRESS, PERSPECTIVE, CONSENSUS, COMPLETE, ERROR
+  - JSON serialization for automation
+  - CLI formatter for terminal display
+
+### New Files
+- `services/model_provider.py` - Abstract provider interface
+- `services/stream_events.py` - Streaming event types
+- `services/streaming_orchestrator.py` - Async streaming debate orchestration
+- `.speckit/specs/v1.3.0_streaming_multimodel_spec.md` - Feature specification
+
+### New MCP Tools
+- `debate_start` - Phase 1: Start debate, get prompt for Claude
+- `debate_complete` - Phase 2: Submit Claude's analysis, get consensus
+
+### CLI Changes
+- New flag: `--stream` / `-s` for live progress display
+- New flag: `--json-stream` for JSON line output
+
+### Breaking Changes
+- None (streaming is opt-in via flags)
+- Existing MCP tools continue to work
+
+---
+
 ## [1.2.0] - 2025-01-03
 
 ### Added
@@ -104,7 +148,8 @@ Add to Claude Desktop settings (`~/.claude/settings.json`):
 
 - v1.0.0: Core library + CLI
 - v1.1.0: MCP server integration
-- v1.2.0 (Current): VS Code extensions
+- v1.2.0: VS Code extensions
+- v1.3.0 (Current): Real-time streaming + True multi-model debates
 
 ---
 
@@ -112,4 +157,6 @@ Add to Claude Desktop settings (`~/.claude/settings.json`):
 
 ### Planned
 - Web UI for debate visualization
-- Custom LLM provider support
+- Custom debate templates
+- GitHub Actions integration
+- Team/organization learning from debate outcomes

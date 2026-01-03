@@ -40,6 +40,9 @@ class DebateMCPServer:
             # Phase 7.2: Full automation tools
             "debate_check_copilot_status": self.check_copilot_status,
             "debate_configure_copilot": self.configure_copilot,
+            # v1.3.0: Two-phase true multi-model workflow
+            "debate_start": self.debate_start,
+            "debate_complete": self.debate_complete,
         }
 
     def check_complexity(self, request: str, file_paths: List[str]) -> Dict[str, Any]:
@@ -434,6 +437,331 @@ class DebateMCPServer:
                 "success": False,
                 "error": f"Failed to configure Copilot: {str(e)}"
             }
+
+    def debate_start(
+        self,
+        request: str,
+        file_paths: Optional[List[str]] = None,
+        context: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Start a two-phase debate (v1.3.0 true multi-model workflow).
+
+        Phase 1: This tool creates the session and returns a structured prompt
+        for Claude Code to analyze. Claude provides REAL analysis (not a template).
+
+        Phase 2: Call debate_complete with Claude's analysis to get Codex's
+        counter-perspective and consensus score.
+
+        Args:
+            request: Description of the code change to debate
+            file_paths: List of file paths affected (optional)
+            context: Additional context like file contents (optional)
+
+        Returns:
+            Dictionary with session_id, claude_prompt, and instructions
+        """
+        try:
+            import uuid
+            from ai_debate_tool.file_protocol import get_hashed_user
+            from ai_debate_tool.config import load_config
+
+            # Generate session ID
+            session_id = f"debate_{uuid.uuid4().hex[:8]}"
+
+            # Create session directory
+            result = create_session_directory(session_id)
+            if not result["success"]:
+                return {
+                    "success": False,
+                    "error": result.get("error", "Failed to create session"),
+                }
+
+            session_path = Path(result["path"])
+
+            # Store metadata
+            metadata = read_metadata(session_path)["metadata"]
+            metadata["request"] = request
+            metadata["file_paths"] = file_paths or []
+            metadata["context"] = context or ""
+            metadata["state"] = "AWAITING_CLAUDE"
+            metadata["workflow"] = "two_phase_v1.3"
+            write_metadata(session_path, metadata)
+
+            # Build structured prompt for Claude
+            claude_prompt = self._build_claude_analysis_prompt(
+                request=request,
+                file_paths=file_paths,
+                context=context
+            )
+
+            return {
+                "success": True,
+                "session_id": session_id,
+                "claude_prompt": claude_prompt,
+                "instructions": (
+                    "Please analyze the above prompt and provide your detailed assessment. "
+                    "Include:\n"
+                    "1. Your recommendation (proceed/review/reject)\n"
+                    "2. Key considerations and trade-offs\n"
+                    "3. Potential risks or concerns\n"
+                    "4. A score from 0-100 indicating confidence\n\n"
+                    "After providing your analysis, call debate_complete with your response."
+                ),
+                "next_step": "debate_complete",
+            }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to start debate: {str(e)}"
+            }
+
+    def debate_complete(
+        self,
+        session_id: str,
+        claude_analysis: str
+    ) -> Dict[str, Any]:
+        """Complete the two-phase debate with Claude's real analysis.
+
+        This is Phase 2 of the v1.3.0 workflow:
+        1. Receives Claude's REAL analysis (from Phase 1)
+        2. Invokes Codex CLI for counter-perspective
+        3. Calculates consensus between two real AI responses
+        4. Returns decision pack
+
+        Args:
+            session_id: Session ID from debate_start
+            claude_analysis: Claude's actual analysis text
+
+        Returns:
+            Dictionary with consensus_score, summaries, and decision_pack
+        """
+        try:
+            from ai_debate_tool.file_protocol import get_hashed_user
+            from ai_debate_tool.config import load_config
+            from ai_debate_tool.services.codex_cli_invoker import CodexCLIInvoker
+            from ai_debate_tool.services.fast_moderator import FastModerator
+            import re
+
+            config = load_config()
+            user_hash = get_hashed_user()
+            session_dir = config.temp_dir / "ai_debates" / user_hash / session_id
+
+            if not session_dir.exists():
+                return {
+                    "success": False,
+                    "error": f"Session {session_id} not found. Call debate_start first.",
+                }
+
+            # Read metadata
+            metadata_result = read_metadata(session_dir)
+            if not metadata_result["success"]:
+                return {
+                    "success": False,
+                    "error": "Failed to read session metadata",
+                }
+
+            metadata = metadata_result["metadata"]
+
+            # Store Claude's real analysis
+            write_proposal(session_dir, "claude", 1, claude_analysis)
+
+            # Extract Claude's score
+            claude_score = self._extract_score(claude_analysis, default=75)
+
+            # Build counter-prompt for Codex
+            codex_prompt = self._build_codex_counter_prompt(
+                request=metadata.get("request", ""),
+                claude_analysis=claude_analysis,
+                context=metadata.get("context", "")
+            )
+
+            # Invoke Codex CLI
+            codex_invoker = CodexCLIInvoker()
+            codex_result = codex_invoker.invoke(codex_prompt)
+
+            if not codex_result.get("success"):
+                return {
+                    "success": False,
+                    "error": f"Codex invocation failed: {codex_result.get('error', 'Unknown error')}",
+                    "claude_analysis_saved": True,
+                }
+
+            codex_response = codex_result.get("response", "")
+
+            # Store Codex's analysis
+            write_proposal(session_dir, "codex", 1, codex_response)
+
+            # Extract Codex's score
+            codex_score = self._extract_score(codex_response, default=75)
+
+            # Calculate consensus using FastModerator
+            consensus = FastModerator.analyze(
+                {"score": claude_score, "response": claude_analysis},
+                {"score": codex_score, "response": codex_response}
+            )
+
+            # Update metadata with results
+            metadata["state"] = "COMPLETE"
+            metadata["claude_score"] = claude_score
+            metadata["codex_score"] = codex_score
+            metadata["consensus_score"] = consensus["consensus_score"]
+            write_metadata(session_dir, metadata)
+
+            return {
+                "success": True,
+                "session_id": session_id,
+                "consensus_score": consensus["consensus_score"],
+                "interpretation": consensus["interpretation"],
+                "recommendation": consensus["recommendation"],
+                "can_proceed": consensus["consensus_score"] >= 70,
+                "claude_summary": {
+                    "score": claude_score,
+                    "provider": "Claude Code (real)",
+                    "excerpt": claude_analysis[:200] + "..." if len(claude_analysis) > 200 else claude_analysis,
+                },
+                "codex_summary": {
+                    "score": codex_score,
+                    "provider": "Codex CLI",
+                    "excerpt": codex_response[:200] + "..." if len(codex_response) > 200 else codex_response,
+                },
+                "decision_pack": {
+                    "request": metadata.get("request"),
+                    "file_paths": metadata.get("file_paths", []),
+                    "consensus_score": consensus["consensus_score"],
+                    "recommendation": consensus["recommendation"],
+                },
+            }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to complete debate: {str(e)}"
+            }
+
+    def _build_claude_analysis_prompt(
+        self,
+        request: str,
+        file_paths: Optional[List[str]] = None,
+        context: Optional[str] = None
+    ) -> str:
+        """Build the analysis prompt for Claude.
+
+        Args:
+            request: The debate request
+            file_paths: List of affected files
+            context: Additional context
+
+        Returns:
+            Structured prompt string
+        """
+        prompt_parts = [
+            "# Code Change Analysis Request",
+            "",
+            "## Request",
+            request,
+            "",
+        ]
+
+        if file_paths:
+            prompt_parts.extend([
+                "## Affected Files",
+                *[f"- {fp}" for fp in file_paths],
+                "",
+            ])
+
+        if context:
+            prompt_parts.extend([
+                "## Additional Context",
+                context,
+                "",
+            ])
+
+        prompt_parts.extend([
+            "## Your Task",
+            "Provide a thorough analysis of this proposed change. Consider:",
+            "- **Correctness**: Will it work as intended?",
+            "- **Security**: Any security implications?",
+            "- **Maintainability**: Is the approach sustainable?",
+            "- **Performance**: Any performance concerns?",
+            "- **Edge Cases**: What could go wrong?",
+            "",
+            "End your analysis with:",
+            "- **Recommendation**: PROCEED / REVIEW / REJECT",
+            "- **Confidence Score**: X/100",
+        ])
+
+        return "\n".join(prompt_parts)
+
+    def _build_codex_counter_prompt(
+        self,
+        request: str,
+        claude_analysis: str,
+        context: str = ""
+    ) -> str:
+        """Build the counter-analysis prompt for Codex.
+
+        Args:
+            request: Original request
+            claude_analysis: Claude's analysis to counter
+            context: Additional context
+
+        Returns:
+            Counter-analysis prompt
+        """
+        return f"""# Critical Counter-Analysis Request
+
+You are providing an INDEPENDENT counter-perspective to another AI's analysis.
+
+## Original Request
+{request}
+
+## First Analysis (by Claude)
+{claude_analysis}
+
+## Your Task as Critical Reviewer
+
+Provide your INDEPENDENT assessment. Be skeptical and thorough:
+
+1. **Challenge Assumptions**: What did the first analysis assume without justification?
+2. **Identify Blind Spots**: What risks or concerns were overlooked?
+3. **Alternative Approaches**: Are there better ways to accomplish this?
+4. **Devil's Advocate**: What could go wrong that wasn't considered?
+
+Be specific and actionable. Your role is to ensure nothing is overlooked.
+
+End with:
+- **Your Recommendation**: PROCEED / REVIEW / REJECT
+- **Your Confidence Score**: X/100
+"""
+
+    def _extract_score(self, text: str, default: int = 75) -> int:
+        """Extract numerical score from analysis text.
+
+        Args:
+            text: Analysis text containing a score
+            default: Default score if not found
+
+        Returns:
+            Score between 0-100
+        """
+        import re
+
+        patterns = [
+            r'(?:score|confidence):\s*(\d{1,3})\s*/\s*100',
+            r'(?:score|confidence):\s*(\d{1,3})',
+            r'(\d{1,3})\s*/\s*100',
+            r'(?:give|assign|rate)\s+(?:it\s+)?(?:a\s+)?(\d{1,3})',
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                score = int(match.group(1))
+                if 0 <= score <= 100:
+                    return score
+
+        return default
 
     def handle_request(self, tool: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle MCP tool request.
