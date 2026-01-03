@@ -10,7 +10,7 @@ Tests objective priority scoring algorithm:
 """
 
 import pytest
-from services.priority_scorer import PriorityScorer
+from ai_debate_tool.services.priority_scorer import PriorityScorer
 
 
 class TestPriorityScoring:

@@ -12,7 +12,7 @@ Tests:
 import pytest
 import tempfile
 from pathlib import Path
-from services.prompt_optimizer import PromptOptimizer
+from ai_debate_tool.services.prompt_optimizer import PromptOptimizer
 
 
 class TestPromptOptimizer:

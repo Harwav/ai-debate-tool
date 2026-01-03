@@ -7,7 +7,7 @@ Tests:
 """
 
 import pytest
-from services.fast_moderator import FastModerator
+from ai_debate_tool.services.fast_moderator import FastModerator
 
 
 class TestFastModerator:

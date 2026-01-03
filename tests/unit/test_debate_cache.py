@@ -12,7 +12,7 @@ import tempfile
 import time
 from pathlib import Path
 from datetime import datetime, timedelta
-from services.debate_cache import DebateCache
+from ai_debate_tool.services.debate_cache import DebateCache
 
 
 class TestDebateCache:
