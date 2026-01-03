@@ -28,7 +28,7 @@ CLI Usage:
     ai-debate config --init
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __author__ = "AI Debate Tool Contributors"
 __license__ = "MIT"
 

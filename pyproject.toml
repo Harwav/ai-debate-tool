@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ai-debate-tool"
-version = "1.0.0"
+version = "1.1.0"
 description = "AI-to-AI debate orchestration for better decision-making"
 readme = "README.md"
 license = {text = "MIT"}
@@ -52,6 +52,7 @@ dev = [
 
 [project.scripts]
 ai-debate = "ai_debate_tool.cli:main"
+ai-debate-server = "ai_debate_tool.mcp_server:main"
 
 [project.urls]
 Homepage = "https://github.com/ai-debate-tool/ai-debate-tool"

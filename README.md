@@ -169,6 +169,51 @@ Options:
   --path   Show config file path
 ```
 
+### `ai-debate server`
+
+Start the MCP server for Claude Desktop integration.
+
+```bash
+ai-debate server [options]
+
+Options:
+  -v, --verbose  Verbose output
+```
+
+---
+
+## MCP Server Integration
+
+The AI Debate Tool includes an MCP server for Claude Desktop integration.
+
+### Quick Setup
+
+1. Add to Claude Desktop settings (`~/.claude/settings.json`):
+```json
+{
+  "mcpServers": {
+    "ai-debate-tool": {
+      "command": "ai-debate",
+      "args": ["server"]
+    }
+  }
+}
+```
+
+2. Restart Claude Desktop
+
+### Available MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `debate_check_complexity` | Check if change requires debate |
+| `debate_start_auto` | Start automated debate |
+| `debate_submit_codex_response` | Submit Codex response |
+| `debate_check_consensus` | Check consensus status |
+| `debate_get_decision_pack` | Get full decision pack |
+
+See [docs/mcp-server.md](docs/mcp-server.md) for full documentation.
+
 ---
 
 ## How It Works
@@ -232,8 +277,8 @@ Or use environment variables:
 
 ## Roadmap
 
-- **v1.0.0** (Current): Core library + CLI
-- **v1.1.0** (Planned): MCP server integration
+- **v1.0.0**: Core library + CLI
+- **v1.1.0** (Current): MCP server integration
 - **v1.2.0** (Planned): VS Code extensions
 
 ---

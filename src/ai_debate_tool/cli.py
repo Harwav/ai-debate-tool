@@ -221,6 +221,32 @@ def history(limit: int, json_output: bool, stats: bool):
 
 
 @main.command()
+@click.option("--port", "-p", default=None, type=int, help="Port for HTTP mode (default: stdio)")
+@click.option("--verbose", "-v", is_flag=True, help="Verbose output")
+def server(port: Optional[int], verbose: bool):
+    """Start the MCP server.
+
+    By default, runs in stdio mode for Claude Desktop integration.
+    Use --port to run in HTTP mode for debugging.
+
+    Example:
+        ai-debate server              # Stdio mode (for Claude Desktop)
+        ai-debate server --port 8080  # HTTP mode (for debugging)
+    """
+    from .mcp_server import main as mcp_main
+
+    if port:
+        click.echo(f"HTTP mode not yet implemented. Use stdio mode.", err=True)
+        sys.exit(1)
+
+    if verbose:
+        click.echo("Starting MCP server in stdio mode...", err=True)
+
+    # Run MCP server
+    mcp_main()
+
+
+@main.command()
 @click.option("--init", "do_init", is_flag=True, help="Initialize configuration")
 @click.option("--show", is_flag=True, help="Show current configuration")
 @click.option("--path", is_flag=True, help="Show config file path")

@@ -1,0 +1,182 @@
+{
+  "mcpServers": {
+    "ai-debate-tool": {
+      "command": "python",
+      "args": [
+        "-m",
+        "ai_debate_tool.mcp_server.debate_server"
+      ],
+      "description": "AI Debate Tool - Orchestrate debates between Claude Code and Codex",
+      "tools": [
+        {
+          "name": "debate_check_complexity",
+          "description": "Check if a code change requires AI debate based on complexity",
+          "parameters": {
+            "request": {
+              "type": "string",
+              "description": "Description of the code change (e.g., 'Refactor authentication to use JWT')",
+              "required": true
+            },
+            "file_paths": {
+              "type": "array",
+              "description": "List of file paths that will be modified",
+              "items": {
+                "type": "string"
+              },
+              "required": true
+            }
+          }
+        },
+        {
+          "name": "debate_start_session",
+          "description": "Start a new AI debate session",
+          "parameters": {
+            "session_id": {
+              "type": "string",
+              "description": "Unique identifier for this debate (use UUID)",
+              "required": true
+            },
+            "request": {
+              "type": "string",
+              "description": "Description of the code change",
+              "required": true
+            },
+            "file_paths": {
+              "type": "array",
+              "description": "List of file paths that will be modified",
+              "items": {
+                "type": "string"
+              },
+              "required": true
+            }
+          }
+        },
+        {
+          "name": "debate_submit_proposal",
+          "description": "Submit a proposal from an AI (Claude or Codex)",
+          "parameters": {
+            "session_id": {
+              "type": "string",
+              "description": "Debate session identifier",
+              "required": true
+            },
+            "ai_name": {
+              "type": "string",
+              "description": "Name of AI submitting proposal ('claude' or 'codex')",
+              "required": true
+            },
+            "round_num": {
+              "type": "integer",
+              "description": "Debate round number (1, 2, 3, etc.)",
+              "required": true
+            },
+            "proposal": {
+              "type": "string",
+              "description": "The proposal text in markdown format",
+              "required": true
+            }
+          }
+        },
+        {
+          "name": "debate_check_consensus",
+          "description": "Check if consensus has been reached in the debate",
+          "parameters": {
+            "session_id": {
+              "type": "string",
+              "description": "Debate session identifier",
+              "required": true
+            }
+          }
+        },
+        {
+          "name": "debate_override",
+          "description": "User manually overrides debate requirement and allows execution",
+          "parameters": {
+            "session_id": {
+              "type": "string",
+              "description": "Debate session identifier",
+              "required": true
+            }
+          }
+        },
+        {
+          "name": "debate_get_decision_pack",
+          "description": "Get the decision pack with all proposals and analysis",
+          "parameters": {
+            "session_id": {
+              "type": "string",
+              "description": "Debate session identifier",
+              "required": true
+            }
+          }
+        },
+        {
+          "name": "debate_start_auto",
+          "description": "Start automated debate - one command to check complexity, create session, and generate Codex prompt",
+          "parameters": {
+            "request": {
+              "type": "string",
+              "description": "Description of the code change",
+              "required": true
+            },
+            "file_paths": {
+              "type": "array",
+              "description": "List of file paths that will be modified",
+              "items": {
+                "type": "string"
+              },
+              "required": false
+            },
+            "context": {
+              "type": "object",
+              "description": "Additional context for the debate",
+              "required": false
+            }
+          }
+        },
+        {
+          "name": "debate_submit_codex_response",
+          "description": "Submit Codex's response after manual invocation",
+          "parameters": {
+            "session_id": {
+              "type": "string",
+              "description": "Debate session ID from debate_start_auto",
+              "required": true
+            },
+            "codex_response": {
+              "type": "string",
+              "description": "Codex's counter-proposal text",
+              "required": true
+            }
+          }
+        },
+        {
+          "name": "debate_check_copilot_status",
+          "description": "Check if VS Code Copilot Bridge is available for automatic invocation",
+          "parameters": {}
+        },
+        {
+          "name": "debate_configure_copilot",
+          "description": "Configure Copilot bridge settings",
+          "parameters": {
+            "endpoint": {
+              "type": "string",
+              "description": "Copilot bridge endpoint URL",
+              "required": false
+            },
+            "model": {
+              "type": "string",
+              "description": "Preferred model (e.g., gpt-5-codex)",
+              "required": false
+            },
+            "enable_auto": {
+              "type": "boolean",
+              "description": "Enable automatic invocation",
+              "required": false
+            }
+          }
+        }
+      ]
+    }
+  }
+}
