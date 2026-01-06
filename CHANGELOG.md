@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-01-06
+
+### Added
+- **FastMCP Server**: Proper MCP server using the `fastmcp` library for Claude Code integration
+  - Standard MCP protocol support (JSON-RPC 2.0)
+  - Works with Claude Code VS Code extension and Claude Desktop
+  - Auto-loads via `.mcp.json` project configuration
+
+- **Auto-Iterative Debates**: `debate_iterative` tool that automatically loops until target consensus
+  - Set target consensus (default: 90/100)
+  - Automatically invokes Codex for each round
+  - Returns concerns for revision if below target
+  - Continues until target reached or max iterations (default: 5)
+
+- **New MCP Tools**:
+  - `debate_iterative` - Full auto-iteration workflow
+  - `debate_single` - Quick single-round consensus check
+  - `debate_check_codex` - Verify Codex CLI availability
+
+### New Files
+- `src/ai_debate_tool/mcp_server/fastmcp_server.py` - FastMCP-based MCP server
+- `examples/mcp-config.json` - Example `.mcp.json` configuration
+
+### Changed
+- Added `fastmcp>=2.14.0` as a dependency
+
+### Migration
+To use the new MCP server, create `.mcp.json` in your project root:
+```json
+{
+  "mcpServers": {
+    "ai-debate": {
+      "type": "stdio",
+      "command": "fastmcp",
+      "args": ["run", "ai_debate_tool.mcp_server.fastmcp_server:mcp", "--transport", "stdio"]
+    }
+  }
+}
+```
+
+---
+
 ## [1.3.0] - 2026-01-04
 
 ### Added

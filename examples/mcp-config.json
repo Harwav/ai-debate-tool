@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "ai-debate": {
+      "type": "stdio",
+      "command": "fastmcp",
+      "args": [
+        "run",
+        "ai_debate_tool.mcp_server.fastmcp_server:mcp",
+        "--transport",
+        "stdio"
+      ],
+      "env": {
+        "PYTHONPATH": "${CLAUDE_PROJECT_ROOT}"
+      }
+    }
+  }
+}

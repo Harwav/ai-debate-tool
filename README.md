@@ -182,35 +182,56 @@ Options:
 
 ---
 
-## MCP Server Integration
+## MCP Server Integration (v2.0 - FastMCP)
 
-The AI Debate Tool includes an MCP server for Claude Desktop integration.
+The AI Debate Tool includes a proper MCP server using FastMCP for Claude Code integration.
 
 ### Quick Setup
 
-1. Add to Claude Desktop settings (`~/.claude/settings.json`):
+1. Install the package:
+```bash
+pip install ai-debate-tool
+```
+
+2. Create `.mcp.json` in your project root:
 ```json
 {
   "mcpServers": {
-    "ai-debate-tool": {
-      "command": "ai-debate",
-      "args": ["server"]
+    "ai-debate": {
+      "type": "stdio",
+      "command": "fastmcp",
+      "args": [
+        "run",
+        "ai_debate_tool.mcp_server.fastmcp_server:mcp",
+        "--transport",
+        "stdio"
+      ]
     }
   }
 }
 ```
 
-2. Restart Claude Desktop
+3. Restart Claude Code (VS Code extension) or Claude Desktop
 
 ### Available MCP Tools
 
 | Tool | Description |
 |------|-------------|
-| `debate_check_complexity` | Check if change requires debate |
-| `debate_start_auto` | Start automated debate |
-| `debate_submit_codex_response` | Submit Codex response |
-| `debate_check_consensus` | Check consensus status |
-| `debate_get_decision_pack` | Get full decision pack |
+| `mcp__ai-debate__debate_iterative` | **Auto-iterate until target consensus** (e.g., 90+) |
+| `mcp__ai-debate__debate_single` | Quick single-round consensus check |
+| `mcp__ai-debate__debate_check_codex` | Verify Codex CLI is installed |
+
+### Usage in Claude Code
+
+Just say:
+- "Debate this plan until 90+ consensus"
+- "Run an AI debate on this approach"
+
+Claude will automatically use `debate_iterative` which:
+1. Invokes Codex (GPT-5.1-max) for counter-analysis
+2. Calculates consensus score
+3. If below target: Returns concerns for revision
+4. Repeats until target reached or max iterations
 
 See [docs/mcp-server.md](docs/mcp-server.md) for full documentation.
 
@@ -305,7 +326,8 @@ See [vscode-extensions/README.md](vscode-extensions/README.md) for full document
 
 - **v1.0.0**: Core library + CLI
 - **v1.1.0**: MCP server integration
-- **v1.2.0** (Current): VS Code extensions
+- **v1.2.0**: VS Code extensions
+- **v2.0.0** (Current): FastMCP server with auto-iteration
 
 ---
 
