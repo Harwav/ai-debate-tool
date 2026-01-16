@@ -28,7 +28,7 @@ CLI Usage:
     ai-debate config --init
 """
 
-__version__ = "1.3.0"
+__version__ = "2.0.0"
 __author__ = "AI Debate Tool Contributors"
 __license__ = "MIT"
 
@@ -69,15 +69,17 @@ def get_stream_events():
     return StreamEvent, EventType, StreamEventFormatter
 
 def get_model_providers():
-    """Get model provider classes (lazy import, v1.3.0)."""
+    """Get model provider classes (lazy import, v2.0.0)."""
     from .services.model_provider import (
         ModelProvider, ModelResponse, CodexCLIProvider,
-        CopilotBridgeProvider, get_available_providers, get_provider_status
+        GeminiCLIProvider, CopilotBridgeProvider,
+        get_available_providers, get_provider_status
     )
     return {
         'ModelProvider': ModelProvider,
         'ModelResponse': ModelResponse,
         'CodexCLIProvider': CodexCLIProvider,
+        'GeminiCLIProvider': GeminiCLIProvider,
         'CopilotBridgeProvider': CopilotBridgeProvider,
         'get_available_providers': get_available_providers,
         'get_provider_status': get_provider_status,
